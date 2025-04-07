@@ -1,0 +1,69 @@
+!pip install streamlit pyngrok --quiet
+
+%%writefile app.py
+import streamlit as st
+from pyngrok import ngrok
+
+st.set_page_config(page_title="Group Chat Moderator", layout="centered")
+st.title("🛡️ Group Chat Moderator")
+st.markdown("Moderate group chats in real-time using AI.")
+
+# Sidebar settings
+st.sidebar.header("🔧 Moderator Settings")
+enable_profanity_filter = st.sidebar.checkbox("Enable Profanity Filter", True)
+enable_spam_filter = st.sidebar.checkbox("Enable Spam Filter", True)
+moderation_threshold = st.sidebar.slider("Moderation Strictness", 0.0, 1.0, 0.7)
+
+# Chat history
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+# Message input form
+with st.form("chat_form", clear_on_submit=True):
+    user = st.selectbox("Sender", ["User1", "User2", "User3", "Moderator"])
+    message = st.text_area("Type your message here:", height=100)
+    submitted = st.form_submit_button("Send")
+
+# Simple moderation logic
+def moderate_message(user, message):
+    flagged = False
+
+    if enable_profanity_filter and any(word in message.lower() for word in ["bad", "ugly", "hate", "stupid", "idiot", "dumb", "fool", "loser", "shut up", "nonsense", "trash", "kill", "sucks", "crazy", "freak"
+]):
+        flagged = True
+
+    if enable_spam_filter and message.lower().count("buy now") > 1:
+        flagged = True
+
+    if flagged:
+        return "⚠️ *This message was removed due to inappropriate content.*", "red"
+    else:
+        return message, "white"
+
+# Process message
+if submitted and message.strip():
+    moderated_msg, color = moderate_message(user, message)
+    st.session_state.chat_history.append((user, moderated_msg, color))
+
+# Show chat history
+st.subheader("💬 Chat History")
+for user, msg, color in reversed(st.session_state.chat_history[-20:]):
+    st.markdown(f"**{user}:** <span style='color:{color}'>{msg}</span>", unsafe_allow_html=True)
+
+
+
+from pyngrok import ngrok
+import os
+
+# Kill existing tunnels if any
+ngrok.kill()
+
+# Set up tunnel
+port = 8501
+public_url = ngrok.connect(port)
+print(f"🌐 Streamlit app URL: {public_url}")
+
+# Run the Streamlit app
+!streamlit run app.py &>/content/log.txt &
+
+print(f"✅ Open the app in browser: {public_url}")
